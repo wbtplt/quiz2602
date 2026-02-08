@@ -25,25 +25,25 @@ function App() { // <--- 1. Hookはこの関数の「中」でしか使えませ
     });
   }, []); // [] を忘れずに！
 
-  // タイマーの処理
+// タイマーの処理
   useEffect(() => {
-    // すでにクイズが終わっていたら何もしない
-    if (isFinished) return;
+    if (isFinished || questions.length === 0) return;
   
-    // 1秒ごとにカウントダウン
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleAnswer(-1); // 0秒になったら不正解（-1）として次へ
-          return 10; // タイマーをリセット
+        // 0.1秒ずつ引いていく
+        if (prev <= 0.1) {
+          handleAnswer(-1);
+          return 10;
         }
-        return prev - 1;
+        // 小数点第1位まで計算（浮動小数点の誤差を防ぐためにtoFixedを使うとより安全）
+        return Math.round((prev - 0.1) * 10) / 10;
       });
-    }, 1000);
-  
+    }, 100); // 100ミリ秒ごとに実行
+
     // 次の問題へ行ったときなどに、古いタイマーを消す（重要！）
-    return () => clearInterval(timer);
-  }, [currentIdx, isFinished]); // 問題番号が変わるたびにタイマーを再セット
+return () => clearInterval(timer);
+  }, [currentIdx, isFinished, questions.length]);// 問題番号が変わるたびにタイマーを再セット
   
   // handleAnswerの中でタイマーをリセットする処理を追加
 
@@ -83,11 +83,35 @@ function App() { // <--- 1. Hookはこの関数の「中」でしか使えませ
         <div className="quiz">
           <h2>第 {currentIdx + 1} 問</h2>
 
-          <div style={{ marginBottom: '10px' }}>
-            残り時間: <strong>{timeLeft}</strong> 秒
-            <progress value={timeLeft} max="10" style={{ width: '100%' }}></progress>
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              fontFamily: 'monospace', // 等幅フォントを指定
+              fontSize: '1.2rem'
+            }}>
+              <span>TIME</span>
+              <span style={{ 
+                color: timeLeft < 3 ? '#ff4d4d' : 'inherit', 
+                fontWeight: 'bold',
+                minWidth: '3.5em', // 表示幅を確保してズレを完全に防ぐ
+                textAlign: 'right'
+              }}>
+                {timeLeft.toFixed(1)}s
+              </span>
+            </div>
+            
+            <progress 
+              value={timeLeft} 
+              max="10" 
+              style={{ 
+                width: '100%', 
+                height: '12px',
+                transition: 'all 0.1s linear'
+              }}
+            ></progress>
           </div>
-
+          
           <p className="question-text">{questions[currentIdx].question}</p>
           <div className="options">
             <button onClick={() => handleAnswer(0)}>{questions[currentIdx].option1}</button>
