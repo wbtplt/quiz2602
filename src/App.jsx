@@ -2,122 +2,126 @@ import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import './App.css'
 
-function App() { // <--- 1. Hookはこの関数の「中」でしか使えません
+function App() {
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(10);
+  // 'question' (問題表示) か 'answer' (正解表示) かの状態
+  const [phase, setPhase] = useState('question');
 
-  // ステートを追加
-  const [timeLeft, setTimeLeft] = useState(10); // 1問10秒とする
-  
-  // 2. パスの作成はここで行う（またはuseEffectの直前）
-  const csvPath = `${import.meta.env.BASE_URL}quiz_data.csv`;
-
-  useEffect(() => { // <--- 3. useEffectは必ず関数の「直下」で呼ぶ
-    Papa.parse(csvPath, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setQuestions(results.data);
-      }
-    });
-  }, []); // [] を忘れずに！
-
-// タイマーの処理
   useEffect(() => {
-    if (isFinished || questions.length === 0) return;
-  
+    const csvPath = `${import.meta.env.BASE_URL}quiz_target1.csv`;
+    Papa.parse(csvPath, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => setQuestions(results.data)
+    });
+  }, []);
+
+  // タイマー処理（phaseが'question'の時だけ動く）
+  useEffect(() => {
+    if (isFinished || questions.length === 0 || phase === 'answer') return;
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        // 0.1秒ずつ引いていく
         if (prev <= 0.1) {
-          handleAnswer(-1);
+          //showAnswer(); // 時間切れで正解を表示
           return 10;
         }
-        // 小数点第1位まで計算（浮動小数点の誤差を防ぐためにtoFixedを使うとより安全）
         return Math.round((prev - 0.1) * 10) / 10;
       });
-    }, 100); // 100ミリ秒ごとに実行
+    }, 100);
+    return () => clearInterval(timer);
+  }, [currentIdx, isFinished, phase, questions.length]);
 
-    // 次の問題へ行ったときなどに、古いタイマーを消す（重要！）
-return () => clearInterval(timer);
-  }, [currentIdx, isFinished, questions.length]);// 問題番号が変わるたびにタイマーを再セット
-  
-  // handleAnswerの中でタイマーをリセットする処理を追加
+  // 正解を表示する（フェーズ切り替え）
+  const showAnswer = () => {
+    setPhase('answer');
+  };
 
-  const handleAnswer = (index) => {
-    // 1. まずタイマーをリセット
-    setTimeLeft(10);
+  // ユーザーが自分で「正解/不正解」を判断した後の処理
+  const handleJudge = (isCorrect) => {
+    if (isCorrect) setScore(score + 1);
 
-    // 2. 正誤判定（時間切れの -1 以外、かつ正解の場合）
-    const currentQuestion = questions[currentIdx];
-    if (index !== -1 && currentQuestion) {
-      if (parseInt(currentQuestion.correctIndex) === index) {
-        setScore((prevScore) => prevScore + 1);
-      }
-    }
-
-    // 3. 次の問題へ進むか、終了判定
     const nextIdx = currentIdx + 1;
     if (nextIdx < questions.length) {
       setCurrentIdx(nextIdx);
+      setTimeLeft(10);
+      setPhase('question'); // 次の問題へ
     } else {
       setIsFinished(true);
     }
   };
 
-
   if (questions.length === 0) return <div>読み込み中...</div>;
 
   return (
-    <div className="App">
+    <div className="App" style={{ padding: '20px', textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
       {isFinished ? (
-        <div className="result">
-          <h1>クイズ終了！</h1>
-          <p>あなたのスコア: {score} / {questions.length}</p>
-          <button onClick={() => window.location.reload()}>もう一度挑戦</button>
+        <div>
+          <h1>終了！</h1>
+          <p>あなたの自己採点: {score} / {questions.length}</p>
+          <button onClick={() => window.location.reload()}>もう一度</button>
         </div>
       ) : (
-        <div className="quiz">
+        <div>
           <h2>第 {currentIdx + 1} 問</h2>
-
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              fontFamily: 'monospace', // 等幅フォントを指定
-              fontSize: '1.2rem'
-            }}>
-              <span>TIME</span>
-              <span style={{ 
-                color: timeLeft < 3 ? '#ff4d4d' : 'inherit', 
-                fontWeight: 'bold',
-                minWidth: '3.5em', // 表示幅を確保してズレを完全に防ぐ
-                textAlign: 'right'
-              }}>
-                {timeLeft.toFixed(1)}s
-              </span>
-            </div>
-            
-            <progress 
-              value={timeLeft} 
-              max="10" 
-              style={{ 
-                width: '100%', 
-                height: '12px',
-                transition: 'all 0.1s linear'
-              }}
-            ></progress>
-          </div>
           
-          <p className="question-text">{questions[currentIdx].question}</p>
-          <div className="options">
-            <button onClick={() => handleAnswer(0)}>{questions[currentIdx].option1}</button>
-            <button onClick={() => handleAnswer(1)}>{questions[currentIdx].option2}</button>
-            <button onClick={() => handleAnswer(2)}>{questions[currentIdx].option3}</button>
+          {/* タイマー表示：問題フェーズの時だけ出す */}
+          <div style={{ marginBottom: '20px', height: '60px', visibility: phase === 'question' ? 'visible' : 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace' }}>
+              <span>THINKING TIME</span>
+              <span style={{ color: timeLeft < 3 ? 'red' : 'inherit' }}>{timeLeft.toFixed(1)}s</span>
+            </div>
+            <progress value={timeLeft} max="10" style={{ width: '100%', transition: 'all 0.1s linear' }}></progress>
           </div>
+
+          <p style={{ fontSize: '1.4rem', minHeight: '3em' }}>{questions[currentIdx].question}</p>
+
+          <hr style={{ margin: '20px 0' }} />
+
+          {phase === 'question' ? (
+            // １．問題フェーズのボタン
+            <button onClick={showAnswer} style={{ padding: '10px 20px', fontSize: '1.1rem', width: '100%' }}>
+              正解を表示する
+            </button>
+          ) : (
+            // ２．正解・判断フェーズ
+            <div style={{ animation: 'fadeIn 0.5s' }}>
+              <p style={{ color: '#ff4d4d', fontWeight: 'bold', fontSize: '1.2rem' }}>正解は..</p>
+              <p style={{ fontSize: '3.0rem', marginBottom: '30px' }}>{questions[currentIdx].answer}</p>
+              
+
+              {/* ★解説エリアの追加 */}
+              {questions[currentIdx].info && (
+                <div style={{ 
+                  backgroundColor: '#f0f4f8', 
+                  padding: '15px', 
+                  borderRadius: '8px', 
+                  textAlign: 'left', 
+                  fontSize: '1.2rem',
+                  lineHeight: '1.5',
+                  marginBottom: '30px',
+                  borderLeft: '4px solid #3182ce'
+                }}>
+                  <strong style={{ display: 'block', marginBottom: '5px', color: '#3182ce' }}>💡 解説</strong>
+                  {questions[currentIdx].info}
+                </div>
+              )}
+
+
+              <p>あなたの回答は？</p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => handleJudge(true)} style={{ flex: 1, padding: '15px', backgroundColor: '#4CAF50', color: 'white' }}>
+                  正解！
+                </button>
+                <button onClick={() => handleJudge(false)} style={{ flex: 1, padding: '15px', backgroundColor: '#f44336', color: 'white' }}>
+                  わからなかった
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
