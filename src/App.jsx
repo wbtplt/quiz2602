@@ -57,71 +57,105 @@ function App() {
   if (questions.length === 0) return <div>読み込み中...</div>;
 
   return (
-    <div className="App" style={{ padding: '20px', textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
+    <div className="App" style={{ 
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '10px 20px', 
+      textAlign: 'center', 
+      maxWidth: '500px', 
+      margin: '0 auto' ,
+      boxSizing: 'border-box',
+      overflow: 'hidden'
+      }}>
       {isFinished ? (
-        <div>
+        <div style={{ margin: 'auto' }}>
           <h1>終了！</h1>
           <p>あなたの自己採点: {score} / {questions.length}</p>
           <button onClick={() => window.location.reload()}>もう一度</button>
         </div>
       ) : (
-        <div>
-          <h2>第 {currentIdx + 1} 問</h2>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          justifyContent: 'space-between' // 要素を上下に振り分ける
+          }}>
+          <h2 style={{ fontSize: '1.2rem', margin: '10px 0'}}>
+            第 {currentIdx + 1} 問
+          </h2>
           
-          {/* タイマー表示：問題フェーズの時だけ出す */}
-          <div style={{ marginBottom: '20px', height: '60px', visibility: phase === 'question' ? 'visible' : 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace' }}>
-              <span>THINKING TIME</span>
-              <span style={{ color: timeLeft < 3 ? 'red' : 'inherit' }}>{timeLeft.toFixed(1)}s</span>
-            </div>
-            <progress value={timeLeft} max="10" style={{ width: '100%', transition: 'all 0.1s linear' }}></progress>
+          
+          {/* コンテンツエリア（解説などを中央に配置） */}
+          <div style={{ 
+            flex: 1,                      // 余ったスペースをすべて使う
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'center',     // 中央寄せ
+            overflowY: 'auto',            // 万が一はみ出た時だけ中だけスクロール
+            padding: '10px 0'
+          }}>
+            {phase === 'question' ? (
+              // １．問題フェーズ：タイマーを表示
+              <div style={{ animation: 'fadeIn 0.3s' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '0.9rem' }}>
+                  <span>THINKING TIME</span>
+                  <span style={{ color: timeLeft < 3 ? '#ff4d4d' : 'inherit' }}>{timeLeft.toFixed(1)}s</span>
+                </div>
+                <progress value={timeLeft} max="10" style={{ width: '100%', transition: 'all 0.1s linear' }}></progress>
+                <p style={{ fontSize: 'clamp(1.5rem, 8vw, 3rem)', margin: '15px 0', fontWeight: 'bold' }}>
+                  {questions[currentIdx].question}
+                  </p>
+              </div>
+            ) : (
+              // ２．正解フェーズ：代わりに「ANSWER CHECK」などのラベルを出す（または空にする）
+              <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left', borderBottom: '2px solid #3182ce', paddingBottom: '5px' }}>
+                <strong style={{ fontSize: '1.5rem', color: '#3182ce' }}>
+                  {questions[currentIdx].question}
+                  </strong>
+              </div>
+            )}
+
+            {phase === 'answer' && (
+              <div style={{ animation: 'fadeIn 0.5s' }}>
+                <p style={{ fontSize: 'clamp(1.2rem, 6vw, 1.8rem)', marginBottom: '20px', color: '#2d3748' }}>
+                  {questions[currentIdx].answer}
+                </p>
+                
+                {questions[currentIdx].info && (
+                  <div style={{ 
+                    backgroundColor: '#f0f4f8', 
+                    padding: '12px', 
+                    borderRadius: '8px', 
+                    textAlign: 'left', 
+                    fontSize: 'clamp(0.9rem, 4vw, 1.1rem)', // スマホとPCで最適化
+                    lineHeight: '1.4',
+                    borderLeft: '4px solid #3182ce'
+                  }}>
+                    {questions[currentIdx].info}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <p style={{ fontSize: '1.4rem', minHeight: '3em' }}>{questions[currentIdx].question}</p>
-
-          <hr style={{ margin: '20px 0' }} />
-
-          {phase === 'question' ? (
-            // １．問題フェーズのボタン
-            <button onClick={showAnswer} style={{ padding: '10px 20px', fontSize: '1.1rem', width: '100%' }}>
-              正解を表示する
-            </button>
-          ) : (
-            // ２．正解・判断フェーズ
-            <div style={{ animation: 'fadeIn 0.5s' }}>
-              <p style={{ color: '#ff4d4d', fontWeight: 'bold', fontSize: '1.2rem' }}>正解は..</p>
-              <p style={{ fontSize: '3.0rem', marginBottom: '30px' }}>{questions[currentIdx].answer}</p>
-              
-
-              {/* ★解説エリアの追加 */}
-              {questions[currentIdx].info && (
-                <div style={{ 
-                  backgroundColor: '#f0f4f8', 
-                  padding: '15px', 
-                  borderRadius: '8px', 
-                  textAlign: 'left', 
-                  fontSize: '1.2rem',
-                  lineHeight: '1.5',
-                  marginBottom: '30px',
-                  borderLeft: '4px solid #3182ce'
-                }}>
-                  <strong style={{ display: 'block', marginBottom: '5px', color: '#3182ce' }}>💡 解説</strong>
-                  {questions[currentIdx].info}
-                </div>
-              )}
-
-
-              <p>あなたの回答は？</p>
+          {/* ボタンエリア（常に一番下に配置） */}
+          <div style={{ paddingBottom: '150px' }}>
+            {phase === 'question' ? (
+              <button onClick={showAnswer} style={{ padding: '15px 20px', fontSize: '1.3rem', width: '100%', borderRadius: '10px' }}>
+                正解を表示する
+              </button>
+            ) : (
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => handleJudge(true)} style={{ flex: 1, padding: '15px', backgroundColor: '#4CAF50', color: 'white' }}>
-                  正解！
+                <button onClick={() => handleJudge(true)} style={{ flex: 1, padding: '15px', backgroundColor: '#63bc66', color: 'white', borderRadius: '10px', fontSize: '1.1rem' }}>
+                  わかった
                 </button>
-                <button onClick={() => handleJudge(false)} style={{ flex: 1, padding: '15px', backgroundColor: '#f44336', color: 'white' }}>
-                  わからなかった
+                <button onClick={() => handleJudge(false)} style={{ flex: 1, padding: '15px', backgroundColor: '#fe7167', color: 'white', borderRadius: '10px', fontSize: '1.1rem' }}>
+                  要復習
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
